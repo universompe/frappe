@@ -1,163 +1,190 @@
-frappe.provide("frappe.ui");
-
-frappe.ui.ThemeSwitcher = class ThemeSwitcher {
-	constructor() {
-		this.setup_dialog();
-		this.refresh();
+frappe.ui.AppsSwitcher = class AppsSwitcher {
+	constructor(sidebar) {
+		this.sidebar = sidebar;
+		this.sidebar_wrapper = $(this.sidebar.wrapper.find(".body-sidebar"));
+		this.drop_down_expanded = false;
+		this.make();
+		this.setup_app_switcher();
+		this.set_hover();
 	}
 
-	setup_dialog() {
-		this.dialog = new frappe.ui.Dialog({
-			title: __("Switch Theme"),
+	make() {
+		this.wrapper = $(
+			frappe.render_template("apps_switcher", {
+				app_logo_url: '',
+				app_title: __(frappe.boot.app_data[0].app_title),
+			})
+		).prependTo(this.sidebar_wrapper);
+		this.app_switcher_dropdown = $(".app-switcher-dropdown");
+	}
+
+	setup_app_switcher() {
+		this.app_switcher_menu = $(".app-switcher-menu");
+		$(".app-switcher-dropdown").on("click", (e) => {
+			this.toggle_app_menu();
+			e.stopImmediatePropagation();
 		});
-		this.body = $(`<div class="theme-grid"></div>`).appendTo(this.dialog.$body);
-		this.bind_events();
 	}
-
-	bind_events() {
-		this.dialog.$wrapper.on("keydown", (e) => {
-			if (!this.themes) return;
-
-			const key = frappe.ui.keys.get_key(e);
-			let increment_by;
-
-			if (key === "right") {
-				increment_by = 1;
-			} else if (key === "left") {
-				increment_by = -1;
-			} else if (e.keyCode === 13) {
-				// keycode 13 is for 'enter'
-				this.hide();
-			} else {
-				return;
+	toggle_app_menu() {
+		this.toggle_active();
+		this.app_switcher_menu.toggleClass("hidden");
+	}
+	create_app_data_map() {
+		frappe.boot.app_data_map = {};
+		for (var app of frappe.boot.app_data) {
+			frappe.boot.app_data_map[app.app_name] = app;
+			if (app.workspaces?.length) {
+				this.add_app_item(app);
 			}
-
-			const current_index = this.themes.findIndex((theme) => {
-				return theme.name === this.current_theme;
-			});
-
-			const new_theme = this.themes[current_index + increment_by];
-			if (!new_theme) return;
-
-			new_theme.$html.click();
-			return false;
-		});
-	}
-
-	refresh() {
-		this.current_theme = document.documentElement.getAttribute("data-theme-mode") || "light";
-		this.fetch_themes().then(() => {
-			this.render();
-		});
-	}
-
-	fetch_themes() {
-		return new Promise((resolve) => {
-			this.themes = [
-				{
-					name: "light",
-					label: __("Frappe Light"),
-					info: __("Light Theme"),
-				},
-				{
-					name: "dark",
-					label: __("Timeless Night"),
-					info: __("Dark Theme"),
-				},
-				{
-					name: "automatic",
-					label: __("Automatic"),
-					info: __("Uses system's theme to switch between light and dark mode"),
-				},
-			];
-
-			resolve(this.themes);
-		});
-	}
-
-	render() {
-		this.themes.forEach((theme) => {
-			let html = this.get_preview_html(theme);
-			html.appendTo(this.body);
-			theme.$html = html;
-		});
-	}
-
-	get_preview_html(theme) {
-		const is_auto_theme = theme.name === "automatic";
-		const preview = $(`<div class="${this.current_theme == theme.name ? "selected" : ""}">
-			<div data-theme=${is_auto_theme ? "light" : theme.name}
-				data-is-auto-theme="${is_auto_theme}" title="${theme.info}">
-				<div class="background">
-					<div>
-						<div class="preview-check" data-theme=${is_auto_theme ? "dark" : theme.name}>
-							${frappe.utils.icon("tick", "xs")}
-						</div>
-					</div>
-					<div class="navbar"></div>
-					<div class="p-2">
-						<div class="toolbar">
-							<span class="text"></span>
-							<span class="primary"></span>
-						</div>
-						<div class="foreground"></div>
-						<div class="foreground"></div>
-					</div>
-				</div>
-			</div>
-			<div class="mt-3 text-center">
-				<h5 class="theme-title">${theme.label}</h5>
-			</div>
-		</div>`);
-
-		preview.on("click", () => {
-			if (this.current_theme === theme.name) return;
-
-			this.themes.forEach((th) => {
-				th.$html.removeClass("selected");
-			});
-
-			preview.addClass("selected");
-			this.toggle_theme(theme.name);
-		});
-
-		return preview;
-	}
-
-	toggle_theme(theme) {
-		this.current_theme = theme.toLowerCase();
-		document.documentElement.setAttribute("data-theme-mode", this.current_theme);
-		frappe.show_alert(__("Theme Changed"), 3);
-
-		frappe.xcall("frappe.core.doctype.user.user.switch_theme", {
-			theme: toTitle(theme),
-		});
-	}
-
-	show() {
-		this.dialog.show();
-	}
-
-	hide() {
-		this.dialog.hide();
-	}
-};
-
-frappe.ui.add_system_theme_switch_listener = () => {
-	frappe.ui.dark_theme_media_query.addEventListener("change", () => {
-		frappe.ui.set_theme();
-	});
-};
-
-frappe.ui.dark_theme_media_query = window.matchMedia("(prefers-color-scheme: dark)");
-
-frappe.ui.set_theme = (theme) => {
-	const root = document.documentElement;
-	let theme_mode = root.getAttribute("data-theme-mode");
-	if (!theme) {
-		if (theme_mode === "automatic") {
-			theme = frappe.ui.dark_theme_media_query.matches ? "dark" : "light";
 		}
 	}
-	root.setAttribute("data-theme", theme || theme_mode);
+	populate_apps_menu() {
+		this.add_private_app();
+
+		this.add_website_select();
+		this.add_settings_select();
+		this.setup_select_app();
+	}
+
+	add_app_item(app) {
+		$(`<div class="app-item" data-app-name="${app.app_name}"
+				data-app-route="${app.app_route}">
+				<a>
+					<span class="app-item-title">${app.app_title}</span>
+				</a>
+			</div>`).appendTo(this.app_switcher_menu);
+	}
+
+	add_private_app() {
+		let private_pages = this.sidebar.all_pages.filter((p) => p.public === 0);
+		if (private_pages.length === 0) return;
+
+		const app = {
+			app_name: "private",
+			app_title: __("My Workspaces"),
+			app_route: "/app/private",
+			app_logo_url: "/assets/frappe/images/frappe-framework-logo.svg",
+			workspaces: private_pages,
+		};
+
+		frappe.boot.app_data_map["private"] = app;
+		$(`<div class="divider"></div>`).prependTo(this.app_switcher_menu);
+		$(`<div class="app-item" data-app-name="${app.app_name}"
+			data-app-route="${app.app_route}">
+			<a>
+				<div class="sidebar-item-icon">
+					<img
+						class="app-logo"
+						src="${app.app_logo_url}"
+						alt="${__("App Logo")}"
+					>
+				</div>
+				<span class="app-item-title">${app.app_title}</span>
+			</a>
+		</div>`).prependTo(this.app_switcher_menu);
+	}
+
+	setup_select_app() {
+		this.app_switcher_menu.find(".app-item").on("click", (e) => {
+			let item = $(e.delegateTarget);
+			let route = item.attr("data-app-route");
+			this.app_switcher_menu.toggleClass("hidden");
+			this.toggle_active();
+
+			if (item.attr("data-app-name") == "settings") {
+				frappe.quick_edit("Workspace Settings");
+				return;
+			}
+			if (route.startsWith("/app/private")) {
+				this.set_current_app("private");
+				let ws = Object.values(frappe.workspace_map).find((ws) => ws.public === 0);
+				route += "/" + frappe.router.slug(ws.title);
+				frappe.set_route(route);
+			} else if (route.startsWith("/app")) {
+				frappe.set_route(route);
+				this.set_current_app(item.attr("data-app-name"));
+			} else {
+				// new page
+				window.open(route);
+			}
+		});
+	}
+	// refactor them into one single function
+	add_website_select() {
+		$(`<div class="divider"></div>`).appendTo(this.app_switcher_menu);
+		this.add_app_item(
+			{
+				app_name: "website",
+				app_title: __("Website"),
+				app_route: "/",
+				app_logo_url: "/assets/frappe/images/web.svg",
+			},
+			this.app_switcher_menu
+		);
+	}
+
+	add_settings_select() {
+		$(`<div class="divider"></div>`).appendTo(this.app_switcher_menu);
+		this.add_app_item({
+			app_name: "settings",
+			app_title: __("Settings"),
+			app_logo_url: "/assets/frappe/images/settings-gear.svg",
+		});
+		let settings_item = this.app_switcher_menu.children().last();
+	}
+
+	set_current_app(app) {
+		if (!app) {
+			console.warn("set_current_app: app not defined");
+			return;
+		}
+		let app_data = frappe.boot.app_data_map[app] || frappe.boot.app_data_map["frappe"];
+
+		this.sidebar_wrapper
+			.find(".app-switcher-dropdown .sidebar-item-icon img")
+			.attr("src", app_data.app_logo_url);
+		this.sidebar_wrapper
+			.find(".app-switcher-dropdown .sidebar-item-label")
+			.html(app_data.app_title);
+
+		frappe.frappe_toolbar.set_app_logo(app_data.app_logo_url);
+
+		if (frappe.current_app === app) return;
+		frappe.current_app = app;
+
+		// re-render the sidebar
+		frappe.app.sidebar.make_sidebar();
+	}
+
+	set_hover() {
+		const me = this;
+
+		this.app_switcher_dropdown.on("mouseover", function () {
+			if ($(this).hasClass("active-sidebar")) return;
+			$(this).addClass("hover");
+
+			if (!me.sidebar.sidebar_expanded) {
+				$(this).removeClass("hover");
+			}
+		});
+
+		this.app_switcher_dropdown.on("mouseleave", function () {
+			$(this).removeClass("hover");
+		});
+	}
+
+	toggle_active() {
+		this.toggle_dropdown();
+		this.app_switcher_dropdown.toggleClass("active-sidebar");
+		if (!this.sidebar.sidebar_expanded) {
+			this.app_switcher_dropdown.removeClass("active-sidebar");
+		}
+	}
+	toggle_dropdown() {
+		if (this.drop_down_expanded) {
+			this.drop_down_expanded = false;
+		} else {
+			this.drop_down_expanded = true;
+		}
+	}
 };

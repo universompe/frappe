@@ -1,4 +1,5 @@
 {% extends "templates/web.html" %}
+{% block navbar %}{% endblock %}
 
 {% macro email_login_body() -%}
 {% if not disable_user_pass_login or (ldap_settings and ldap_settings.enabled) %}
@@ -33,7 +34,7 @@
 
 	{% if not disable_user_pass_login %}
 	<p class="forgot-password-message">
-		<a href="#forgot">{{ _("Forgot Password?") }}</a>
+		<a href="#forgot">{{ _("Esqueceu a senha?") }}</a>
 	</p>
 	{% endif %}
 </div>
@@ -60,7 +61,7 @@
 	{% if title %}
 	<h4>{{ _(title)}}</h4>
 	{% else %}
-	<h4>{{ _('Login to {0}').format(app_name or _("Frappe")) }}</h4>
+	<h4>{{ _("Faça Login em Umpe") }}</h4>
 	{% endif %}
 </div>
 {% endmacro %}
@@ -122,7 +123,7 @@
 							<div class="login-button-wrapper">
 								<a href="#login-with-email-link"
 									class="btn btn-block btn-default btn-sm btn-login-option btn-login-with-email-link">
-									{{ _("Login with Email Link") }}</a>
+									{{ _("Login com link em e-mail") }}</a>
 							</div>
 						</div>
 						{% endif %}
@@ -158,7 +159,7 @@
 	</section>
 	{%- endif -%}
 	<section class='for-signup {{ "signup-disabled" if disable_signup else "" }}'>
-		{{ logo_section(_('Create a {0} Account').format(app_name or _("Frappe"))) }}
+		{{ logo_section(_("Create a Umpe Account")) }}
 		<div class="login-content page-card">
 			{%- if not disable_signup -%}
 			{{ signup_form_template }}
@@ -174,7 +175,7 @@
 	</section>
 
 	<section class='for-forgot'>
-		{{ logo_section('Forgot Password') }}
+		{{ logo_section('Esqueceu a senha') }}
 		<div class="login-content page-card">
 			<form class="form-signin form-forgot hide" role="form">
 				<div class="page-card-body">
@@ -197,7 +198,7 @@
 					<button class="btn btn-sm btn-primary btn-block btn-forgot"
 						type="submit">{{ _("Reset Password") }}</button>
 					<p class="text-center sign-up-message">
-						<a href="#login">{{ _("Back to Login") }}</a>
+						<a href="#login">{{ _("Voltar ao login") }}</a>
 					</p>
 				</div>
 
@@ -206,7 +207,7 @@
 	</section>
 
 	<section class='for-login-with-email-link'>
-			{{ logo_section(_('Login with Email Link')) }}
+			{{ logo_section(_('Login com link em e-mail')) }}
 		<div class="login-content page-card">
 			<form class="form-signin form-login-with-email-link hide" role="form">
 				<div class="page-card-body">
@@ -226,9 +227,9 @@
 				</div>
 				<div class="page-card-actions">
 					<button class="btn btn-sm btn-primary btn-block btn-login-with-email-link"
-						type="submit">{{ _("Send login link") }}</button>
+						type="submit">{{ _("Enviar link de login") }}</button>
 					<p class="text-center sign-up-message">
-						<a href="#login">{{ _("Back to Login") }}</a>
+						<a href="#login">{{ _("Voltar ao login") }}</a>
 					</p>
 				</div>
 			</form>
